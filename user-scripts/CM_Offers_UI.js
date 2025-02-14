@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CM_Offers_UI
 // @description  Rewrite Cardmarket Offers UI to be nicer to use
-// @version      0.9.0
+// @version      0.9.1
 // @author       Topi Salonen
 // @namespace    https://topi.dev/
 // @match        https://www.cardmarket.com/*/Offers/*
@@ -135,6 +135,7 @@ const createImageElem = (origArticleElem) => {
     // Create an element for the image
     const imageElem = document.createElement('img');
     imageElem.onload = () => {
+        if (imageElem.width === imageElem.height) return;
         const isHorizontal = imageElem.width > imageElem.height;
         imageElem.style['aspect-ratio'] = isHorizontal ? '3.5 / 2.5' : '2.5 / 3.5';
     };
@@ -267,13 +268,19 @@ const createProductInfoElem = (newArticleElem, origArticleElem, iframeDocument) 
     const {price, amount, addToCartFormButton, addToCartSelect} = extractProductInfo(origArticleElem);
     const articleId = getArticleId(origArticleElem);
 
+    const productInfoWrapperElem = document.createElement('div');
+    productInfoWrapperElem.id = 'CardmarketUI_ProductInfoWrapper_' + articleId;
+    productInfoWrapperElem.style.display = 'flex';
+    productInfoWrapperElem.style['flex-direction'] = 'column';
+    productInfoWrapperElem.style['justify-content'] = 'end';
+    productInfoWrapperElem.style['flex-grow'] = '1';
+
     const productInfoElem = document.createElement('div');
     productInfoElem.id = 'CardmarketUI_ProductInfo_' + articleId;
     productInfoElem.style.display = 'flex';
     productInfoElem.style['flex-direction'] = 'row';
     productInfoElem.style['justify-content'] = 'space-between';
     productInfoElem.style['align-items'] = 'center';
-    productInfoElem.style['flex-grow'] = '1';
     productInfoElem.style['flex-wrap'] = 'wrap';
     productInfoElem.style.padding = isDesktop ? '0 0.5rem' : '0.3rem 0.3rem 0 0.3rem';
 
@@ -337,7 +344,8 @@ const createProductInfoElem = (newArticleElem, origArticleElem, iframeDocument) 
         productInfoElem.append(addToCartButtonElem);
     }
 
-    return productInfoElem;
+    productInfoWrapperElem.append(productInfoElem);
+    return productInfoWrapperElem;
 }
 
 
