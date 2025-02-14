@@ -542,6 +542,7 @@ const addSubmitListener = (articleElem, shipTo, retry) => {
 
 const addLoadMoreListener = (shipTo) => {
     const loadMoreElem = document.querySelector('div#loadMore');
+    if (!loadMoreElem) return;
     const loadMoreButton = loadMoreElem.querySelector('button#loadMoreButton');
 
     loadMoreButton.addEventListener('click', function() {
