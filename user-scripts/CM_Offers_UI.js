@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CM_Offers_UI
 // @description  Rewrite Cardmarket Offers UI to be nicer to use
-// @version      0.9.1
+// @version      0.9.2
 // @author       Topi Salonen
 // @namespace    https://topi.dev/
 // @match        https://www.cardmarket.com/*/Offers/*
@@ -11,107 +11,88 @@
 
 const isDesktop = window.matchMedia("(min-width: 576px)").matches;
 
-const logger = (msg) => {
-    console.log('CM_Offers_UI: ' + msg);
-}
+const getArticleId = (articleElem) => {
+    return articleElem.id.substring(10);
+};
 
-const getArticleId = (origArticleElem) => {
-    return origArticleElem.id.substr(10);
-}
+const reverseGetArticleId = (newArticleElem) => {
+    return 'articleRow' + newArticleElem.id.substring(21);
+};
 
-const reversetGetArticleId = (newArticleElem) => {
-    return 'articleRow' + newArticleElem.id.substr(21);
-}
-
-// Sometimes the title is not in the attribute 'data-bs-original-title' when the page loads
-// In those cases the value can be found from the attribute 'title'
 const getDataValue = (elem) => {
-    if (!elem) return '';
-
+    if (!elem) return;
     const dataBsOriginalTitle = elem.getAttribute('data-bs-original-title');
     if (dataBsOriginalTitle) return dataBsOriginalTitle;
 
+    // Sometimes the title hasn't been updated by Ajax yet
     return elem.getAttribute('title');
-}
+};
 
-const getImageUrl = (origArticleElem) => {
-    const thumbnailIcon = origArticleElem.querySelector('span.thumbnail-icon');
-
+const getImageUrl = (articleElem) => {
+    const thumbnailIcon = articleElem.querySelector('span.thumbnail-icon');
     const dataValue = getDataValue(thumbnailIcon);
 
     const fileTypes = ['.jpg', '.jpeg', '.png'];
-    let fileType;
-    let fileTypeIndex = -1;
-    for (const fileTypeVal of fileTypes) {
-        if (dataValue.indexOf(fileTypeVal) !== -1) {
-            fileTypeIndex = dataValue.indexOf(fileTypeVal);
-            fileType = fileTypeVal;
-            break;
-        }
-    }
+    const fileType = fileTypes.find(fileType => dataValue.includes(fileType));
+    if (!fileType) return;
 
-    if (fileTypeIndex === -1) {
-        logger('Unhandled filetype in' + dataValue);
-        return '';
-    }
+    const imgSrcStart = dataValue.indexOf('https');
+    const imgSrcEnd = dataValue.indexOf(fileType) + fileType.length;
 
-    return dataValue?.slice(dataValue.indexOf('https'), fileTypeIndex + fileType.length);
-}
+    return dataValue.slice(imgSrcStart, imgSrcEnd);
+};
 
-
-const extractProductInfo = (origArticleElem) => {
-    if (!origArticleElem) {
+const extractProductInfo = (articleElem) => {
+    if (!articleElem) {
         return {};
     }
 
-    const articleId = getArticleId(origArticleElem);
-    const titleElem = origArticleElem.querySelector('div.col-seller');
-    const attributesElem = origArticleElem.querySelector('div.product-attributes');
+    const articleId = getArticleId(articleElem);
+    const titleElem = articleElem.querySelector('div.col-seller');
+    const attributesElem = articleElem.querySelector('div.product-attributes');
     const titleParts = titleElem?.innerText.split('(');
     const titleName = titleParts?.[0].trim();
     // e.g. PRE 039
     const description = titleParts?.[1]?.split(')')[0].trim();
     const attributes = [description];
-    let scanElem;
-
     // Set name, rarity, condition, language, [reverse, altered, signed, scan]
     for (const attributeElem of attributesElem?.children) {
         const title = getDataValue(attributeElem);
-        if (!title) {
-            scanElem = attributeElem;
-        } else {
+        if (title) {
             attributes.push(title);
         }
     }
 
     const attributesStr = attributes.filter(val => !!val).join(' | ');
 
-    const priceElem = origArticleElem.querySelector('span.text-nowrap');
-    const itemCountElem = origArticleElem.querySelector('span.item-count');
-    const addToCartForm = origArticleElem.querySelector('form');
+    const priceElem = articleElem.querySelector('span.text-nowrap');
+    const itemCountElem = articleElem.querySelector('span.item-count');
+
+    const addToCartForm = articleElem.querySelector('form');
     const addToCartFormButton = addToCartForm?.querySelector('button');
-    const addToCartSelect = origArticleElem.querySelector(`select#amount${articleId}`);
-    const addToCartModalLink = origArticleElem.querySelector("a[href='#']");
-    const commentsElem = origArticleElem.querySelector('span.text-truncate');
-    const commentsMobileElem = origArticleElem.querySelector('span.fonticon-comments');
+    const addToCartSelect = articleElem.querySelector(`select#amount${articleId}`);
+
+    const commentsElem = articleElem.querySelector('span.text-truncate');
+    const commentsMobileElem = articleElem.querySelector('span.fonticon-comments');
     const mobileComments = getDataValue(commentsMobileElem);
+    const comments = commentsElem?.innerText || mobileComments;
+    //const addToCartModalLink = articleElem.querySelector("a[href='#']");
 
     return {
         title: titleName,
         description: description,
         url: titleElem?.children[0].href,
-        comments: commentsElem?.innerText || mobileComments, // Text writter by seller
+        comments: comments,
         attributes: attributesStr,
         attributesElem: attributesElem,
-        scanElem: scanElem,
         price: priceElem?.innerText,
         amount: itemCountElem?.innerText,
-        addToCartForm: addToCartForm,
         addToCartFormButton: addToCartFormButton,
         addToCartSelect: addToCartSelect,
-        addToCartModalLink: addToCartModalLink,
+        //addToCartForm: addToCartForm,
+        //addToCartModalLink: addToCartModalLink,
     }
-}
+};
 
 const createImageElem = (origArticleElem) => {
     const {url: articleUrl} = extractProductInfo(origArticleElem);
@@ -135,7 +116,10 @@ const createImageElem = (origArticleElem) => {
     // Create an element for the image
     const imageElem = document.createElement('img');
     imageElem.onload = () => {
+        // Non-card images usually have a square image, trust that
         if (imageElem.width === imageElem.height) return;
+
+        // Set aspect ratio for cards to make sure they're uniform
         const isHorizontal = imageElem.width > imageElem.height;
         imageElem.style['aspect-ratio'] = isHorizontal ? '3.5 / 2.5' : '2.5 / 3.5';
     };
@@ -146,20 +130,19 @@ const createImageElem = (origArticleElem) => {
     imageContainerElem.append(linkElem);
 
     return imageContainerElem;
-}
+};
 
-const addSubmitListener = (newArticleElem, origArticleElem, iframeDocument, retry) => {
-    // Close previous system message and try again
+const addSubmitListener = (newArticleElem, iframeDocument, retry) => {
+    // Close previous system message, if visible, and retry
     const systemMessage = (iframeDocument || document).querySelector('div.systemMessage');
     if (systemMessage) {
         if (!retry) {
-            logger('Close previous system message');
             const closeSystemMessageButton = systemMessage.querySelector('button');
             closeSystemMessageButton.click();
         }
 
         setTimeout(() => {
-            addSubmitListener(newArticleElem, origArticleElem, iframeDocument, true);
+            addSubmitListener(newArticleElem, iframeDocument, true);
         }, 100);
 
         return;
@@ -169,7 +152,7 @@ const addSubmitListener = (newArticleElem, origArticleElem, iframeDocument, retr
     let retries = 0;
     const systemMessageInterval = setInterval(() => {
         if (retries > 10) {
-            logger("Failed to get system message");
+            console.error('CM_Offers_UI: Failed to get system message');
             clearInterval(systemMessageInterval);
         }
         retries++;
@@ -182,12 +165,11 @@ const addSubmitListener = (newArticleElem, origArticleElem, iframeDocument, retr
         // Element found, clear interval
         clearInterval(systemMessageInterval);
 
+        // Update article with new amount
         if (systemMessage.innerText.trim() === 'Your request was executed successfully') {
-            logger('Item added to cart', newArticleElem.id.substr(10));
-            // Update styles
             updateArticle(newArticleElem, iframeDocument);
         } else {
-            logger('Adding to cart failed ' + systemMessage.innerText);
+            console.error('CM_Offers_UI: Adding to cart failed ' + systemMessage.innerText);
         }
     }, 200);
 };
@@ -396,6 +378,7 @@ const hideOrigUIElements = () => {
     }
 
     // Hide scan tooltip on mobile since you can't really hover
+    // Scan will instead be opened in a new tab
     if (!isDesktop) {
         GM.addStyle(`
            div.bs-tooltip-auto {
@@ -426,20 +409,20 @@ const createNewTable = () => {
 const updateArticle = (newArticleElem, iframeDocument) => {
     const tableElem = document.querySelector('div#CardmarketUI_Table');
 
-    const origArticleId = reversetGetArticleId(newArticleElem);
+    const origArticleId = reverseGetArticleId(newArticleElem);
     const origArticleElem = (iframeDocument || document).querySelector('div#' + origArticleId);
 
     if (!origArticleElem) {
         // Element no longer exists, remove from table
         tableElem.removeChild(newArticleElem);
-        logger("Article ran out");
+        console.log('CM_Offers_UI: Article ran out');
         return;
     }
 
     // Update item to table
     const updatedNewArticleElem = createArticle(origArticleElem, iframeDocument);
     tableElem.replaceChild(updatedNewArticleElem, newArticleElem);
-    logger("Article updated");
+    console.log('CM_Offers_UI: Article amount updated');
 }
 
 const convertArticles = (newTableBody, articleElems, iframeDocument) => {
@@ -459,7 +442,7 @@ const handleIframeLoaded = (pageNumber) => {
 
     const tableElem = document.querySelector('div#CardmarketUI_Table');
 
-    logger('Found articles from iframe for page ' + pageNumber);
+    console.log('CM_Offers_UI: Found articles from iframe for page ' + pageNumber);
 
     convertArticles(tableElem, articleElems, iframeDocument);
 }
@@ -474,13 +457,13 @@ const addIframeReadyListener = () => {
     }, false);
 };
 
-(function() {
+(() => {
     'use strict';
 
     // Don't run the script again in iframe
     if (window.self !== window.top) return;
 
-    logger("Initialised");
+    console.log('CM_Offers_UI: Initialised');
     window.top.postMessage(`CM_Offers_UI:initialised`, '*');
 
     hideOrigUIElements();

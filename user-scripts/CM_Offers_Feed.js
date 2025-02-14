@@ -81,6 +81,8 @@ const setIframeLoaded = (iframeElem, isLoaded, pageNumber) => {
 
 const hideSpinner = () => {
     const feedSpinnerElem = document.querySelector('div#CM_Feed_Spinner');
+    if (!feedSpinnerElem) return;
+
     feedSpinnerElem.style.display = 'none';
 };
 
@@ -132,7 +134,7 @@ const loadPageInIframe = async (pageNumber) => {
     window.top.postMessage(`CM_Offers_Feed:loaded:${pageNumber}`, '*');
 };
 
-const hideDefaultPagination = () => {
+const hideCardmarketPagination = () => {
     // Hide children of pagination elements so new elements can be appended
     const paginationElems = document.querySelectorAll('div.pagination');
     [...paginationElems[0].children].forEach(elem => {
@@ -144,7 +146,7 @@ const hideDefaultPagination = () => {
 };
 
 const setLoadOnScrollPagination = () => {
-    hideDefaultPagination();
+    hideCardmarketPagination();
 
     if (state.totalPages === state.currentPage) return;
 
@@ -205,15 +207,12 @@ const handleOffersUIInitialised = (msg) => {
     if (scriptName === 'CM_Offers_UI' && event === 'initialised') {
         console.log('CM_Offers_Feed: Initialised');
         parsePaginationValues();
-
-        (async () => {
-            setLoadOnScrollPagination();
-            addScrollListener();
-        })();
+        setLoadOnScrollPagination();
+        addScrollListener();
     }
 };
 
-(async () => {
+(() => {
     'use strict';
 
     // Don't run the script again in iframe

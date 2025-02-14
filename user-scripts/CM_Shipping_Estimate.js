@@ -303,7 +303,7 @@ const countriesList = [
 ];
 
 const getArticleId = (articleElem) => {
-    return articleElem.id.substr(10);
+    return articleElem.id.substring(10);
 }
 
 const getDataValue = (elem) => {
