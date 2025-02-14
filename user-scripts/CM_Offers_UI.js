@@ -1,16 +1,13 @@
 // ==UserScript==
 // @name         CM_Offers_UI
 // @description  Rewrite Cardmarket Offers UI to be nicer to use
-// @version      0.8.0
+// @version      0.9.0
 // @author       Topi Salonen
 // @namespace    https://topi.dev/
 // @match        https://www.cardmarket.com/*/Offers/*
 // @icon         data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💸</text></svg>
-// @grant        GM_addElement
 // @grant        GM.addStyle
 // ==/UserScript==
-
-const offersPage = window.location.pathname.split('/').pop();
 
 const isDesktop = window.matchMedia("(min-width: 576px)").matches;
 
@@ -117,7 +114,7 @@ const extractProductInfo = (origArticleElem) => {
 }
 
 const createImageElem = (origArticleElem) => {
-    const {url: articleUrl, title} = extractProductInfo(origArticleElem);
+    const {url: articleUrl} = extractProductInfo(origArticleElem);
 
     // Extract image from thumbnail
     const imageUrl = getImageUrl(origArticleElem);
@@ -135,27 +132,16 @@ const createImageElem = (origArticleElem) => {
     linkElem.setAttribute('href', articleUrl);
     linkElem.setAttribute('target', '_blank');
 
-    // Create an img element for the image
-    // Use GM_addElement to prevent CORS issues (not supported by iOS UserScripts)
-    let imageElem;
-    if (isDesktop) {
-        GM_addElement(imageContainerElem, 'img', {
-            src: imageUrl,
-        });
-        imageElem = imageContainerElem.querySelector('img');
-    } else {
-        imageElem = document.createElement('img');
-        imageElem.setAttribute('src', imageUrl);
-    }
-
+    // Create an element for the image
+    const imageElem = document.createElement('img');
+    imageElem.onload = () => {
+        const isHorizontal = imageElem.width > imageElem.height;
+        imageElem.style['aspect-ratio'] = isHorizontal ? '3.5 / 2.5' : '2.5 / 3.5';
+    };
+    imageElem.setAttribute('src', imageUrl);
     imageElem.style.width = '100%';
-    if (offersPage === 'Singles' && title.indexOf('BREAK') === -1) {
-        // Make all card images the same size as the scans might differ slightly
-        // Don't set aspect-ratio for BREAK cards as some scans are vertical
-        imageElem.style['aspect-ratio'] = '2.5 / 3.5';
-    }
-    linkElem.append(imageElem);
 
+    linkElem.append(imageElem);
     imageContainerElem.append(linkElem);
 
     return imageContainerElem;
