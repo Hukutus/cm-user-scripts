@@ -152,7 +152,7 @@ const setLoadOnScrollPagination = () => {
     feedSpinnerElem.style['margin-top'] = '3rem';
     feedSpinnerElem.style.width = '3rem';
     feedSpinnerElem.style.height = '3rem';
-    feedSpinnerElem.style.border = '0.2rem solid white';
+    feedSpinnerElem.style.border = '0.2rem solid var(--bs-primary)';
     feedSpinnerElem.style['border-top-color'] = 'transparent';
     feedSpinnerElem.style['border-radius'] = '50%';
 
