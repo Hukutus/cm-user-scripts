@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CM_Offers_Feed
 // @description  Load more Cardmarket Offers pages without needing to reload page
-// @version      1.0.0
+// @version      1.0.1
 // @author       Topi Salonen
 // @namespace    https://topi.dev/
 // @match        https://www.cardmarket.com/*/Offers/*
@@ -145,6 +145,8 @@ const hideDefaultPagination = () => {
 
 const setLoadOnScrollPagination = () => {
     hideDefaultPagination();
+
+    if (state.totalPages === state.currentPage) return;
 
     // Create a spinner element
     const feedSpinnerElem = document.createElement('div');
