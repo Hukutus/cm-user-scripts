@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CM_Offers_UI
 // @description  Rewrite Cardmarket Offers UI to be nicer to use
-// @version      0.9.2
+// @version      0.9.3
 // @author       Topi Salonen
 // @namespace    https://topi.dev/
 // @match        https://www.cardmarket.com/*/Offers/*
@@ -56,8 +56,8 @@ const extractProductInfo = (articleElem) => {
     const description = titleParts?.[1]?.split(')')[0].trim();
     const attributes = [description];
     // Set name, rarity, condition, language, [reverse, altered, signed, scan]
-    for (const attributeElem of attributesElem?.children) {
-        const title = getDataValue(attributeElem);
+    for (let i = 0; i < attributesElem?.children.length; i++) {
+        const title = getDataValue(attributesElem.children[i]);
         if (title) {
             attributes.push(title);
         }
@@ -75,7 +75,7 @@ const extractProductInfo = (articleElem) => {
     const commentsElem = articleElem.querySelector('span.text-truncate');
     const commentsMobileElem = articleElem.querySelector('span.fonticon-comments');
     const mobileComments = getDataValue(commentsMobileElem);
-    const comments = commentsElem?.innerText || mobileComments;
+    const comments = commentsElem?.innerText || mobileComments || '';
     //const addToCartModalLink = articleElem.querySelector("a[href='#']");
 
     return {
@@ -156,20 +156,17 @@ const addSubmitListener = (newArticleElem, iframeDocument, retry) => {
             clearInterval(systemMessageInterval);
         }
         retries++;
-        const systemMessage = (iframeDocument || document).querySelector('div.systemMessage');
-
-        if (!systemMessage) {
-            return;
-        }
+        const systemMessageContainer = (iframeDocument || document).querySelector('div#AlertContainer');
+        if (!systemMessageContainer?.innerText) return;
 
         // Element found, clear interval
         clearInterval(systemMessageInterval);
 
         // Update article with new amount
-        if (systemMessage.innerText.trim() === 'Your request was executed successfully') {
+        if (systemMessageContainer.innerText.trim() === 'Your request was executed successfully') {
             updateArticle(newArticleElem, iframeDocument);
         } else {
-            console.error('CM_Offers_UI: Adding to cart failed ' + systemMessage.innerText);
+            console.error('CM_Offers_UI: Adding to cart failed ' + systemMessageContainer.innerText);
         }
     }, 200);
 };
@@ -302,12 +299,12 @@ const createProductInfoElem = (newArticleElem, origArticleElem, iframeDocument) 
         };
 
         const selectValues = [...addToCartSelect.children].map(optionElem => ({value: optionElem.value}));
-        const selectElems = selectValues.map(({value}) => {
+        for (let i = 0; i < selectValues.length; i++) {
             const optionElem = document.createElement('option');
-            optionElem.value = value;
-            optionElem.innerText = value;
+            optionElem.value = selectValues[i].value;
+            optionElem.innerText = selectValues[i].value;
             selectElem.append(optionElem);
-        });
+        }
         productInfoElem.append(selectElem);
     }
 
@@ -320,7 +317,7 @@ const createProductInfoElem = (newArticleElem, origArticleElem, iframeDocument) 
         addToCartButtonElem.style.padding = '0.3rem';
         addToCartButtonElem.style['border-radius'] = '0.3rem';
         addToCartButtonElem.onclick = () => {
-            addSubmitListener(newArticleElem, origArticleElem, iframeDocument);
+            addSubmitListener(newArticleElem, iframeDocument);
             addToCartFormButton.click();
         }
         productInfoElem.append(addToCartButtonElem);
@@ -426,8 +423,8 @@ const updateArticle = (newArticleElem, iframeDocument) => {
 }
 
 const convertArticles = (newTableBody, articleElems, iframeDocument) => {
-    for (const origArticleElem of articleElems) {
-        const newArticleElem = createArticle(origArticleElem, iframeDocument);
+    for (let i = 0; i < articleElems.length; i++) {
+        const newArticleElem = createArticle(articleElems[i], iframeDocument);
 
         newTableBody.append(newArticleElem);
     }
